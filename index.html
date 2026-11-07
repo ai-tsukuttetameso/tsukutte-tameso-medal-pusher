@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; form-action 'none'">
+<title>つくってためそ メダルの滝</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { --cab: #1b2a4a; --cab2: #0e1730; --line: #c9d3e8; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; justify-content: center; align-items: flex-start;
+    padding: 16px 10px 40px; color: #fff; user-select: none;
+    background: radial-gradient(circle at 50% 10%, #2b3f6e, #070b18 70%);
+    font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif;
+  }
+  .cabinet {
+    width: 1000px; max-width: 100%; border-radius: 26px 26px 14px 14px; padding: 14px 16px 18px;
+    background: linear-gradient(180deg, var(--cab), var(--cab2));
+    box-shadow: 0 0 0 5px var(--line), 0 0 0 9px #55607a, 0 20px 50px #000a;
+  }
+  .marquee { text-align: center; border-radius: 14px; padding: 6px 8px 4px; background: linear-gradient(180deg, #ff6aa8, #c2186b); border: 4px solid #ffd3e6; }
+  .marquee h1 { margin: 0; font-size: 28px; letter-spacing: 3px; text-shadow: 2px 2px 0 #6a0034; }
+  .marquee .sub { font-size: 11px; color: #ffe; }
+  .lights { display: flex; justify-content: space-between; margin-top: 3px; }
+  .lights span { width: 9px; height: 9px; border-radius: 50%; background: #fff; opacity: .3; }
+  .lights span.on { opacity: 1; box-shadow: 0 0 8px #fff; }
+
+  /* スロット */
+  .panel { margin-top: 10px; background: #000; border: 3px solid var(--line); border-radius: 12px; padding: 8px; }
+  .panel h2 { margin: 0 0 6px; font-size: 12px; color: #ffcc33; display: flex; justify-content: space-between; align-items: center; }
+  .prize-note { margin: 7px 0 0; font-size: 11px; line-height: 1.5; color: #c9d3e8; }
+  .slot { display: flex; gap: 10px; align-items: stretch; }
+  .reels { display: flex; gap: 5px; }
+  .reel { width: 50px; height: 58px; background: #fffbe8; border-radius: 6px; display: grid; place-items: center; font: 900 34px/1 "Courier New", "Hiragino Sans", monospace; color: #c00; box-shadow: inset 0 4px 8px #0006, inset 0 -4px 8px #0006; }
+  .reel.spin { color: #c99; filter: blur(.6px); }
+  .reel.reach { animation: reach .2s steps(2) infinite; }
+  @keyframes reach { 50% { background: #ffe36a; } }
+  .reels.win .reel { animation: win .15s steps(2) infinite; }
+  @keyframes win { 50% { background: #ffcc33; color: #fff; } }
+  .paytable { flex: 1; font-size: 11px; line-height: 1.25; display: flex; flex-direction: column; justify-content: space-between; }
+  .paytable div { padding: 2px 6px; border-radius: 4px; background: #1a2440; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+  .paytable b { white-space:nowrap; flex-shrink:0; color: #ffcc33; font-size: 13px; letter-spacing: 1px; }
+  .paytable div.hit { background: #ffcc33; color: #3a1500; } .paytable div.hit b { color: #c00; }
+  .stock { display: flex; gap: 4px; align-items: center; font-size: 10px; color: var(--line); }
+  .stock i { width: 10px; height: 10px; border-radius: 50%; background: #333; display: inline-block; }
+  .stock i.on { background: #ff4a8b; box-shadow: 0 0 6px #ff4a8b; }
+  .msg { margin-top: 6px; text-align: center; font-size: 15px; font-weight: 900; min-height: 20px; color: #9aa6c2; }
+  .msg.good { color: #ffe36a; text-shadow: 0 0 8px #fc0; }
+
+  /* ボールルーレット */
+  .wheel { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+  .wheel div { height: 34px; border-radius: 6px; background: #1a2440; display: grid; place-items: center; font: 900 15px/1 "Courier New", monospace; color: #9aa6c2; }
+  .wheel div.big { color: #ff8ab8; }
+  .wheel div.on { background: var(--ball-color,#fff); color: #172435; box-shadow: 0 0 12px var(--ball-color,#fff); }
+  .wheel.done div.on { animation: win .15s steps(2) infinite; }
+
+  .playbar { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:10px; font-size:12px; }
+  .playbar button, .pause-overlay button { padding:10px 16px; border:2px solid #ffe36a; border-radius:9px; color:#fff1a0; background:#273553; font:700 14px sans-serif; cursor:pointer; }
+  .playfield { position:relative; margin-top:8px; }
+  .pause-overlay { position:absolute; inset:0; z-index:2; background:#071124bb; border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; }
+  .pause-overlay[hidden] { display:none; }
+  .pause-overlay strong { font-size:26px; }
+  .pause-overlay span { font-size:12px; }
+  .gate-status { margin-top:8px; border:2px solid #7ce8f0; border-radius:9px; padding:9px; background:#102e3d; font-size:12px; line-height:1.6; }
+  .gate-status strong { color:#9cffff; }
+  .gate-status.hit { background:#265141; border-color:#ffe36a; }
+  .gate-status.hit strong { color:#ffe36a; }
+  body.paused *, body.ended * { animation-play-state:paused !important; }
+  canvas { display: block; width: 100%; border-radius: 12px; background: #0b1226; cursor: crosshair; touch-action: manipulation; }
+  .counters { display: flex; gap: 8px; margin-top: 10px; }
+  .counter { flex: 1; min-width: 0; background: #000; border: 2px solid var(--line); border-radius: 8px; padding: 3px 6px; text-align: right; }
+  .counter label { display: block; text-align: left; font-size: 10px; color: var(--line); }
+  .counter b { font: 900 22px/1.1 "Courier New", monospace; color: #ff4040; text-shadow: 0 0 6px #f22; }
+  .controls { display: flex; gap: 12px; margin-top: 12px; }
+  .side { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .side label { font-size: 11px; color: var(--line); display: flex; justify-content: space-between; }
+  .side input[type=range] { width: 100%; accent-color: #ffcc33; }
+  .drop {
+    height: 60px; border: none; border-radius: 14px; cursor: pointer; font: 900 17px/1.1 inherit; color: #3a1500;
+    background: radial-gradient(circle at 35% 30%, #fff, #ffd84a 40%, #e09000); box-shadow: 0 6px 0 #8a5a00;
+  }
+  .drop:active { transform: translateY(5px); box-shadow: 0 1px 0 #8a5a00; }
+  .drop:disabled { filter: grayscale(.8) brightness(.6); }
+  .row { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 12px; color: var(--line); gap: 8px; flex-wrap: wrap; }
+  .row button { background: none; border: 1px solid var(--line); color: var(--line); border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 12px; }
+  .row button.on { background: var(--line); color: #0e1730; }
+  .note { font-size: 11px; color: #8f9ab4; margin-top: 10px; line-height: 1.6; }
+  .note b { color: #c9d3e8; }
+  .modebar { display:flex; gap:6px; margin-top:12px; }
+  .modebar button { flex:1; min-width:0; border:1px solid #637fa8; border-radius:10px; padding:10px 4px; background:#132440; color:#d1e3ff; cursor:pointer; font-weight:bold; }
+  .modebar button.active { border:2px solid #ffe36a; background:#46391c; color:#fff2a8; }
+  .modehint { margin:5px 0; color:#bccbe0; font-size:11px; line-height:1.5; }
+  .jackpot-panel { background:linear-gradient(110deg,#40275f,#272348); border:2px solid #e8ba6e; border-radius:12px; padding:10px; margin-top:10px; text-align:center; }
+  .jackpot-panel strong { color:#ffe197; font-size:12px; }
+  #awardAmount { min-width:0; overflow-wrap:anywhere; }
+  .jackpot-number { overflow-wrap:anywhere; display:block; color:#fff3aa; font:900 32px monospace; letter-spacing:3px; }
+  .super-cells { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; margin-top:8px; }
+  .super-cells div { border:1px solid #8c72ac; border-radius:6px; padding:7px 0; background:#19182a; font:bold 15px monospace; }
+  .super-cells .on { background:#ffe36a; color:#3c2600; box-shadow:0 0 12px #f7c94a; }
+  .bonus-ribbon { position:sticky; top:8px; z-index:5; margin-top:10px; background:#102e3df2; border:2px solid #69bec9; border-radius:9px; padding:8px; font-size:12px; line-height:1.6; }
+  .bonus-ribbon strong { color:#fff2a0; }
+  .credit-notice { margin-top:8px; border:2px solid #ffc86a; border-radius:9px; background:#392d1e; color:#ffe4ae; padding:10px; font-size:12px; line-height:1.6; }
+  [hidden] { display:none !important; }
+  .end-shade { position:fixed; inset:0; z-index:30; background:#020716db; display:flex; align-items:center; justify-content:center; padding:16px; overflow:auto; }
+  .end-card { width:390px; max-width:100%; max-height:calc(100dvh - 32px); overflow:auto; border:2px solid #ffe36a; border-radius:18px; padding:22px; text-align:center; background:linear-gradient(#253556,#101d34); }
+  .end-card h2 { margin:0 0 12px; color:#ffe36a; }
+  .end-card p { font-size:13px; line-height:1.7; color:#c8d8ef; }
+  .end-results { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:18px 0; }
+  .end-results div { background:#0b1628; border-radius:8px; padding:10px; font-size:11px; }
+  .end-results b { display:block; font-size:24px; color:#ffe995; margin-top:4px; overflow-wrap:anywhere; }
+  .end-card button { width:100%; padding:13px; margin-top:8px; border:0; border-radius:10px; background:#ffe36a; color:#352300; font-weight:bold; cursor:pointer; }
+  .end-card .secondary { background:#2c4260; color:#e1eeff; }
+  .award-toast { position:fixed; z-index:20; top:12px; left:50%; transform:translateX(-50%); width:380px; max-width:calc(100vw - 24px); pointer-events:none; text-align:center; background:#513b14f5; border:2px solid #ffe38e; border-radius:15px; padding:12px; box-shadow:0 6px 24px #0008; }
+  .award-toast b { display:block; font:900 35px monospace; color:#fff1ab; }
+  .award-toast span { font-size:12px; }
+  .award-toast.jp { background:linear-gradient(110deg,#9c276a,#7c4a15); }
+  .sessionbar { display:flex; align-items:stretch; gap:8px; }
+  .sessionbar .modebar { flex:1; }
+  .sessionbar .playbar { margin:0; }
+  .sessionbar #playState { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+  .game-layout { display:grid; grid-template-columns:minmax(0,1.55fr) minmax(280px,1fr); gap:20px; align-items:start; margin-top:10px; }
+  .play-area,.bonus-area { min-width:0; }
+  .marquee { padding:4px 8px; border-width:3px; }
+  .marquee h1 { font-size:22px; }
+  .marquee .sub { font-size:10px; }
+  .lights span { width:6px; height:6px; }
+  .modebar { margin-top:0; }
+  .modebar button { padding:8px 3px; font-size:12px; }
+  .controls { margin-top:8px; gap:10px; }
+  .side { gap:3px; }
+  .drop { height:44px; font-size:14px; box-shadow:0 4px 0 #8a5a00; }
+  .playbar { margin-top:8px; }
+  .playbar button { padding:7px 12px; font-size:12px; }
+  .event-strip { min-height:32px; display:flex; align-items:center; justify-content:center; margin-top:4px; text-align:center; color:#bddeea; font-size:11px; }
+  .playfield { max-width:min(460px, max(240px, calc((100dvh - 300px) * 480 / 654))); margin:0 auto; }
+  .bonus-ribbon { position:static; margin-top:8px; z-index:auto; }
+  .aside-heading { margin:0 0 6px; font-size:14px; color:#c8d8ec; }
+  .bonus-area .slot { flex-direction:column; }
+  .bonus-area .reels { justify-content:center; }
+  .paytable { gap:4px; }
+  .panel h2 { flex-wrap:wrap; gap:4px; }
+  .award-toast { position:static; transform:none; width:100%; max-width:100%; padding:4px 8px; border-radius:7px; box-shadow:none; display:flex; align-items:center; justify-content:center; gap:8px; }
+  .award-toast b { display:inline; font-size:22px; }
+  .award-toast span { font-size:11px; }
+  .award-toast span:last-child { display:none; }
+  .bonus-area .jackpot-number { font-size:28px; }
+  .bonus-area .msg { font-size:12px; min-height:18px; }
+  .color-help { margin-top:6px; font-size:12px; color:#c8d8ec; }
+  .color-help summary { cursor:pointer; padding:7px 0; }
+  .special-legend { margin-top:10px; padding:10px; border:1px solid #6680a4; border-radius:10px; background:#102139; }
+  .special-legend h2 { margin:0 0 8px; font-size:13px; color:#d9e7fa; }
+  .special-row { display:flex; align-items:center; gap:8px; margin:6px 0; font-size:12px; }
+  .coin-chip { width:25px; height:25px; flex:0 0 25px; display:grid; place-items:center; border:2px solid #d2edff; border-radius:50%; font-weight:bold; }
+  .coin-chip.blue { background:#268ee5; } .coin-chip.purple { background:#8646c9; }
+  .coin-chip.rainbow { background:linear-gradient(130deg,#ff74b8,#ffde72,#7ce6bf,#7eafff,#ca8dff); color:#253350; }
+  .award-toast.blue { background:#163e60; border-color:#8bdbff; }
+  .award-toast.purple { background:#472664; border-color:#d9b3ff; }
+  .award-toast.rainbow { background:linear-gradient(100deg,#494471,#305260); border-color:#ffe7a4; }
+  .help { margin-top:12px; font-size:12px; color:#c6d8ed; }
+  .help summary { cursor:pointer; padding:10px 0; }
+  @media (max-width:780px) {
+    .cabinet { width:520px; padding:10px 12px 14px; }
+    .game-layout { grid-template-columns:minmax(0,1fr); gap:16px; }
+    .bonus-area { border-top:1px solid #7489a5; padding-top:14px; }
+    .side small { display:none; }
+    .gate-status { font-size:11px; padding:7px; }
+  }
+  @media (max-width: 520px) {
+    .slot { flex-direction: column; }
+    .reels { justify-content: center; }
+    .paytable { gap: 4px; }
+    .panel h2 { flex-wrap: wrap; gap: 4px; }
+  }
+  .credit { font-size: 10px; color: #8f9ab4; line-height: 1.6; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="cabinet">
+<div class="marquee">
+    <div class="sub">★ メダルプッシャー ★</div>
+    <h1>メダルの滝</h1>
+    <div class="lights" id="lights"></div>
+  </div>
+<div class="game-layout">
+  <main class="play-area" aria-label="メダル台と操作">
+<div class="sessionbar"><div class="modebar"><button id="modeNormal" class="active" aria-pressed="true">通常・150枚</button><button id="modeFestival" aria-pressed="false">お祭り・景品２倍</button></div><div class="playbar"><span id="playState">プレイ中</span><button id="pause" aria-pressed="false">⏸ 一時停止</button></div></div><div class="controls">
+    <div class="side">
+      <label><span>左発射口の狙い</span><span id="aimL"></span></label>
+      <input type="range" id="sliderL" aria-label="左発射口の狙い">
+      <button class="drop" id="dropL">左から発射 ↗<br><small>A キー</small></button>
+    </div>
+    <div class="side">
+      <label><span>右発射口の狙い</span><span id="aimR"></span></label>
+      <input type="range" id="sliderR" aria-label="右発射口の狙い">
+      <button class="drop" id="dropR">↖ 右から発射<br><small>L キー</small></button>
+    </div>
+  </div>
+    <div class="event-strip"><span id="tableHint">左右に固定したボール専用ゲート</span>
+<div class="award-toast" id="awardToast" role="status" hidden><span id="awardSource"></span><b id="awardAmount"></b><span>中央の払い出し口から台へ流れ込みます！</span></div></div>
+<div class="credit-notice" id="creditNotice" role="status" hidden></div><div class="playfield">
+    <canvas id="cv" width="420" height="654" aria-label="メダル台。左右に固定した水色のゲートをボールが通るとスロット抽選"></canvas>
+    <div class="pause-overlay" id="pauseOverlay" hidden><strong>一時停止中</strong><span>台・抽選・オート投入が止まっています</span><button id="resume">▶ 再開する</button></div>
+  </div><div class="counters">
+    <div class="counter"><label>CREDIT（手持ち）</label><b id="credit">0</b></div>
+    <div class="counter"><label>IN（投入）</label><b id="in">0</b></div>
+    <div class="counter"><label>OUT（払い出し）</label><b id="out">0</b></div>
+    <div class="counter"><label>払い出し率</label><b id="rate">-</b></div>
+  </div><div class="row">
+    <span>スロット <b id="nSlot">0</b> 回 ／ 当たり <b id="nWin">0</b> ／ 台のボール <b id="nBallOnField">4</b>個・返却中 <b id="nBallReturning">0</b>個 ／ 落下 <b id="nBall">0</b>回</span>
+    <span>
+      <button id="auto">オート：OFF</button>
+      <button id="speed">速さ ×1</button>
+      <button id="sound">🔊</button>
+      <button id="reset">最初から</button>
+    </span>
+  </div><div class="gate-status" id="gateStatus"><strong id="gateMsg" aria-live="polite">ボールがゲートを通るとスロット抽選！</strong><br>左右のゲートは固定。ボールの中心が水色の線を手前へ越えると通過。メダルは対象外です。<br>ゲート通過 <b id="nChance">0</b> 回（左 <b id="leftHits">0</b> ／ 右 <b id="rightHits">0</b>）／ 抽選待ち <b id="gateStock">0</b> 回</div>
+  </main>
+  <aside class="bonus-area" aria-label="抽選とボーナス">
+    <h2 class="aside-heading">抽選・ボーナス</h2>
+<p class="modehint" id="modeHint"></p><div class="bonus-ribbon"><strong id="bonusSummary">大きな当たりを狙おう！</strong><br><span id="feedState">景品は中央の払い出し口から流れてきます</span></div><details class="color-help"><summary>色の効果を見る（メダル３種・ボール４種）</summary><div class="special-legend">
+    <h2>色メダルを獲得してイベント！</h2>
+    <div class="special-row"><i class="coin-chip blue">＋</i><span>青：<b id="bluePrize">10</b>枚を中央から追加</span></div>
+    <div class="special-row"><i class="coin-chip purple">★</i><span>紫：上位スロットへ</span></div>
+    <div class="special-row"><i class="coin-chip rainbow">F</i><span>虹：次の３回は当たり確定</span></div>
+    <p class="modehint">手前の黄色い縁から獲得すると発動。赤い端では発動しません。投入36枚ごとにも色メダルが出ます。</p>
+    <p class="modehint">獲得した色メダル <b id="specialCount">0</b>枚</p>
+  </div><div class="special-legend">
+    <h2>色ボールごとに違う抽選</h2>
+    <div class="special-row"><i class="coin-chip" style="background:#ba2737">R</i><span>赤：通常ルーレット</span></div>
+    <div class="special-row"><i class="coin-chip blue">×2</i><span>青：数字の当たり２倍</span></div>
+    <div class="special-row"><i class="coin-chip purple">★</i><span>紫：ルーレット＋上位抽選</span></div>
+    <div class="special-row"><i class="coin-chip rainbow">JP</i><span>虹：JPチャンス専用ルーレット</span></div>
+    <p class="modehint">JPは赤・青・紫0.3%、虹1%、上位抽選0.5%。「蓄積」はJPプールに追加します。マスの確率は均等ではありません。</p>
+  </div></details><div class="jackpot-panel">
+    <strong>育てる JACKPOT プール</strong><b class="jackpot-number" id="jpPool">100</b>
+    <p class="modehint">上限なしで蓄積、JPで全額放出。次のゲームにも持ち越します。</p>
+    <div class="super-cells" id="superCells"></div>
+    <div class="msg" id="superMsg" aria-live="polite">777 または ★当たり３回で上位抽選</div>
+    <p class="modehint">★メーター <b id="starMeter">0</b> / 3 ／ 連チャン <b id="chainCount">0</b> 回</p>
+  </div><div class="panel">
+    <h2><span>CHANCE スロット</span><span class="stock">保留 <i></i><i></i><i></i><i></i></span></h2>
+    <div class="slot">
+      <div class="reels" id="reels"><div class="reel">7</div><div class="reel">★</div><div class="reel">●</div></div>
+      <div class="paytable" id="paytable"></div>
+    </div>
+    <p class="prize-note">同じ絵柄が3つ揃えば右の景品を追加。メダルは上段へ、ボールは下段へ。手前から落として獲得！<br>台のボールは3〜4個が目安。少なくなると自動補充し、台上＋返却中で最大4個です。</p>
+    <div class="msg" id="slotMsg" aria-live="polite"></div>
+  </div><div class="panel">
+    <h2><span>ボールルーレット</span><span style="color:#9aa6c2;font-weight:normal">ボールが手前から落ちたら回ります</span></h2>
+    <p class="modehint" id="ballTypeMsg">落ちたボールの色に合わせて抽選が変わります</p><div class="wheel" id="wheel"></div>
+    <p class="prize-note">数字は中央から上段へ払い出し。「蓄積」はJPプールに加算。JPなら全額放出！落ちたボールは右の専用レーンを通って下段の途中の左右ランダムな位置へ戻ります。</p>
+    <div class="msg" id="wheelMsg" aria-live="polite"></div>
+  </div>
+    <details class="help"><summary>遊び方を見る</summary>
+<div class="note">
+    <b>遊び方</b>：左右の発射口から<b>上段の狙い位置</b>へメダルを飛ばします。スライダーで着地点を調整し、発射ボタンを押します。台をクリック（タップ）して狙って発射することもできます。<br>
+    <b>① 上段に着地 → ② 動く台の縁から下段へ落下 → ③ 下段のメダルを手前へ押し出す</b>、という二段式です。上段にも最初からメダルが載っています。<br>
+    押し出し台がメダルを手前へ押し、<b>手前のふちの黄色い部分</b>から落ちたメダルが戻ってきます。左右の赤い端から落ちると取られます。<br>
+    手前の左右2個の <b>固定ボール専用CHANCEゲート</b> の水色の線を赤いボールが奥から手前へ通るとスロットが回ります（保留は4つまで）。<b>赤いボール</b>が手前から落ちるとボールルーレットで、出た数のメダルが台に追加されます。
+  </div></details>
+    <p class="credit">AIでつくってためそ 第17回のゲームです。学習・検証目的の作品で、本物のメダルや景品とは関係ありません。遊んだ内容は外部に送信されません（JPの額だけ、このブラウザ内に保存します）。</p>
+  </aside>
+</div>
+</div>
+<div class="end-shade" id="endOverlay" hidden>
+  <div class="end-card" role="dialog" aria-modal="true" aria-labelledby="endTitle">
+    <h2 id="endTitle">ゲームオーバー</h2>
+    <p>最後の抽選と払い出しを待ちましたが、<br>手持ちのメダルがなくなりました。</p>
+    <div class="end-results"><div>投入したメダル<b id="endIn"></b></div><div>戻ってきたメダル<b id="endOut"></b></div><div>払い出し率<b id="endRate"></b></div><div>最高連チャン<b id="endChain"></b></div></div>
+    <p>JACKPOTの蓄積は次のゲームに残ります。</p>
+    <button id="restart">もう一度遊ぶ</button><button id="restartFestival" class="secondary">お祭りモードで遊ぶ</button>
+  </div>
+</div>
+
+<script src="pusher-core.js"></script>
+<script>
+(() => {
+  const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  const $ = (id) => document.getElementById(id);
+  const BOARD_X = 30;
+  const OFFY = 34; // 台の上に投入口を描くぶん
+  let g, C, auto = false, speed = 1, soundOn = true, autoSide = 0, autoTimer = 0;
+  let flashes = [], lastStops = 0, lastWheelPos = -1, chanceFlash = [-Infinity, -Infinity];
+  let visualTime = 0, gateNoticeUntil = 0;
+  let currentMode = 'normal', savedPool = null, lastAwardId = 0, toastUntil = 0, recoveredUntil = 0, audioBudget = 0, toastAmount = 0, toastJP = false, toastRank = 0;
+
+  // ===== 音（Web Audio で作る） =====
+  let ac = null;
+  function tone(f, { at = 0, dur = 0.1, type = 'square', vol = 0.05, slide = null } = {}) {
+    if (g.paused || g.status === 'over' || audioBudget++ >= 12 || !soundOn || !navigator.userActivation.hasBeenActive) return;
+    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+    if (ac.state === 'suspended') ac.resume().catch(() => {});
+    const t = ac.currentTime + at, o = ac.createOscillator(), v = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+    v.gain.setValueAtTime(vol, t); v.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(v).connect(ac.destination); o.start(t); o.stop(t + dur + 0.02);
+  }
+  const SFX = {
+    drop: () => { tone(900, { dur: 0.05, vol: 0.03 }); tone(240, { at: 0.05, dur: 0.06, vol: 0.04, slide: 120 }); },
+    pay: () => { tone(2637, { dur: 0.15, type: 'sine', vol: 0.04 }); tone(3951, { at: 0.03, dur: 0.18, type: 'sine', vol: 0.03 }); },
+    lost: () => tone(160, { dur: 0.12, type: 'triangle', vol: 0.05, slide: 80 }),
+    chance: () => [880, 1175, 1568].forEach((f, i) => tone(f, { at: i * 0.05, dur: 0.07 })),
+    stop: () => tone(700, { dur: 0.05, vol: 0.04 }),
+    tick: () => tone(1400, { dur: 0.025, vol: 0.025 }),
+    win: () => [523, 659, 784, 1046, 784, 1046, 1318].forEach((f, i) => tone(f, { at: i * 0.08, dur: 0.1 })),
+    miss: () => tone(330, { dur: 0.3, type: 'triangle', vol: 0.05, slide: 220 }),
+    ball: () => [392, 523, 659, 784, 1046].forEach((f, i) => tone(f, { at: i * 0.07, dur: 0.12, type: 'sawtooth', vol: 0.03 })),
+  };
+
+  // ===== 景品表・ルーレット・スライダー =====
+  function buildPanels() {
+    $('paytable').innerHTML = C.SLOT_TABLE.map((r) => {
+      const [face, prize] = r.label.split(' → ');
+      return `<div data-sym="${r.sym}"><b>${face}</b><span>${prize}</span></div>`;
+    }).join('');
+    $('bluePrize').textContent=10*C.PRIZE_SCALE;
+    $('superCells').innerHTML = C.SUPER_TABLE.map(r => `<div>${r.value===0?'蓄積':r.value}</div>`).join('');
+    $('wheel').innerHTML = C.ROULETTE.map((v) => `<div class="${v >= 10 ? 'big' : ''}">${v===0?'蓄積':v}</div>`).join('');
+    for (const [s, id] of [[0, 'sliderL'], [1, 'sliderR']]) {
+      const el = $(id); el.min = C.AIM_RANGE[s][0]; el.max = C.AIM_RANGE[s][1]; el.step = 1; el.value = g.aim[s];
+      el.oninput = () => g.setAim(s, +el.value);
+    }
+  }
+
+  // ===== 描画 =====
+  function draw() {
+    const pf = g.pusherFront();
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.fillStyle='#0b1226'; ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.save(); ctx.translate(BOARD_X, OFFY);
+    const grd = ctx.createLinearGradient(0, 0, 0, C.D); grd.addColorStop(0, '#24385f'); grd.addColorStop(1, '#3b5a8f');
+    ctx.fillStyle = grd; ctx.fillRect(0, 0, C.W, C.D);
+    // 手前のふち
+    ctx.fillStyle = '#c0283a'; ctx.fillRect(0, C.D - 8, C.GUTTER, 8); ctx.fillRect(C.W - C.GUTTER, C.D - 8, C.GUTTER, 8);
+    ctx.fillStyle = '#ffcc33'; ctx.fillRect(C.GUTTER, C.D - 8, C.W - 2 * C.GUTTER, 8);
+    // 下段。上段とは別の高さで衝突・押し出しを計算する。
+    for (const m of g.medals) if (!m.ball) medal(m.x, m.y, m.r, m.kind);
+    for (const m of g.medals) if (m.ball) ball(m.x, m.y, m.r, m.ballKind);
+    // 上段の動く棚と、下段へ落ちる段差。
+    const pg = ctx.createLinearGradient(0, 20, 0, pf); pg.addColorStop(0, '#416d81'); pg.addColorStop(1, '#a0ccd0');
+    ctx.fillStyle = pg; ctx.fillRect(0, 20, C.W, pf - 20);
+    ctx.fillStyle = '#133746'; ctx.fillRect(0, pf, C.W, C.STEP_HEIGHT);
+    ctx.strokeStyle = '#a7f6ff'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(0, pf); ctx.lineTo(C.W, pf); ctx.stroke(); ctx.lineWidth = 1;
+    for (let x = 15; x < C.W; x += 30) {
+      ctx.fillStyle = '#8cd6de'; ctx.beginPath(); ctx.moveTo(x - 4, pf + 6); ctx.lineTo(x + 4, pf + 6); ctx.lineTo(x, pf + 13); ctx.fill();
+    }
+    ctx.fillStyle = '#193442'; ctx.fillRect(0, C.UPPER_BACK - 6, C.W, 6);
+    for (const m of g.upper) medal(m.x, m.y, m.r, m.kind);
+    // 発射口は左右に固定。照準と弾道は上段の着地点を示す。
+    for (const side of [0, 1]) {
+      const from = g.shotPosition(side), target = g.aimTarget(side), color = side ? '#ffb2db' : '#fff293';
+      ctx.save(); ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]); ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(target.x, target.y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.arc(target.x, target.y, 17, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(target.x - 7, target.y); ctx.lineTo(target.x + 7, target.y); ctx.moveTo(target.x, target.y - 7); ctx.lineTo(target.x, target.y + 7); ctx.stroke();
+      ctx.translate(from.x, from.y); ctx.rotate(Math.atan2(target.y - from.y, target.x - from.x));
+      ctx.fillStyle = g.cool[side] > 0 ? '#758798' : color; ctx.fillRect(0, -6, 30, 12);
+      ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    }
+    for (const shot of g.shots) {
+      const p = Math.max(0, Math.min(1, (g.t - shot.t0) / (shot.t1 - shot.t0)));
+      medal(shot.x0 + (shot.x - shot.x0) * p, shot.y0 + (shot.y - shot.y0) * p - Math.sin(p * Math.PI) * 24, C.R, shot.kind);
+    }
+    for (const fall of g.falling) {
+      const p = Math.max(0, Math.min(1, (g.t - fall.t0) / (fall.t1 - fall.t0)));
+      const y = fall.y0 + (pf + C.STEP_HEIGHT + C.R - fall.y0) * p * p;
+      ctx.fillStyle = '#0006'; ctx.beginPath(); ctx.ellipse(fall.x, pf + C.STEP_HEIGHT + C.R, C.R, 4, 0, 0, 2 * Math.PI); ctx.fill();
+      medal(fall.x, y, C.R * (1.12 - p * 0.12), fall.kind);
+    }
+    // 下段への移動は、実際のメダルの落下だけを描く。
+    // 専用レーン：中央は景品メダル、右はボールを下段の中ほどへ戻す。
+    ctx.fillStyle='#172732';ctx.strokeStyle='#9eb5bc';ctx.lineWidth=1;
+    ctx.beginPath();ctx.roundRect(C.W*0.27,4,C.W*0.46,18,4);ctx.fill();ctx.stroke();
+    for(let i=0;i<7;i++){ctx.fillStyle='#b8a557';ctx.fillRect(C.W*0.30+i*C.W*0.40/6-3,8,6,10);}
+    const laneX=C.W+10, returnY=C.D*0.50;
+    ctx.strokeStyle='#68293d';ctx.lineWidth=21;ctx.beginPath();ctx.moveTo(laneX,C.D-20);ctx.lineTo(laneX,returnY);ctx.stroke();
+    ctx.strokeStyle='#ff9fba';ctx.lineWidth=2;ctx.stroke();ctx.lineWidth=1;ctx.lineCap='butt';
+    ctx.fillStyle='#ffb8d0';ctx.font='bold 10px sans-serif';ctx.fillText('戻',laneX,returnY-18);ctx.fillText('玉',laneX,returnY-5);
+    for(const b of g.ballReturns){
+      const p=Math.max(0,Math.min(1,(g.t-b.t0)/(b.t1-b.t0)));
+      ctx.strokeStyle='#ff9fba55';ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(laneX,b.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+      ctx.strokeStyle='#ffd7e4';ctx.lineWidth=2;ctx.beginPath();ctx.arc(b.x,b.y,C.BALL_R+3,0,Math.PI*2);ctx.stroke();ctx.lineWidth=1;
+      const x=p<0.75?laneX:laneX+(b.x-laneX)*(p-0.75)/0.25;
+      const y=p<0.75?(C.D-20)+(b.y-(C.D-20))*p/0.75:b.y;
+      ball(x,y,C.BALL_R*0.8,b.ballKind);
+    }
+    for(const m of g.prizeFlights){
+      const p=Math.max(0,Math.min(1,(g.t-m.t0)/(m.t1-m.t0)));
+      const x=m.x0+(m.x-m.x0)*p;
+      const y=m.y0+(m.y-m.y0)*p*p;
+      medal(x,y,C.R);
+    }
+    // 左右の固定ゲート。通過した側だけ点灯する。
+    for (const gate of g.chanceGates()) {
+      const cx=gate.x, w=gate.width, gy=gate.y, side=gate.id===0?'左':'右';
+      const lit=visualTime-chanceFlash[gate.id]<1400;
+    ctx.fillStyle = lit ? '#fff0a655' : '#49dbe744';
+    ctx.fillRect(cx - w / 2, gy - 35, w, 57);
+    ctx.strokeStyle = lit ? '#ffe36a' : '#7ce8f0'; ctx.lineWidth = 6;
+    for (const x of [cx - w / 2 - 4, cx + w / 2 + 4]) {
+      ctx.beginPath(); ctx.moveTo(x, gy - 35); ctx.lineTo(x, gy + 22); ctx.stroke();
+      ctx.fillStyle = '#183b50'; ctx.fillRect(x - 7, gy + 16, 14, 10);
+    }
+    // 奥→手前の方向。センサーと開口幅が実際の判定に一致する。
+    ctx.fillStyle = lit ? '#fff7b5' : '#b7ffff';
+    ctx.beginPath(); ctx.moveTo(cx - 9, gy - 20); ctx.lineTo(cx + 9, gy - 20); ctx.lineTo(cx, gy - 9); ctx.fill();
+    ctx.strokeStyle = lit ? '#fff7b5' : '#7cffff'; ctx.lineWidth = 4;
+    ctx.shadowColor = '#7cffff'; ctx.shadowBlur = lit ? 20 : 6;
+    ctx.beginPath(); ctx.moveTo(cx - w / 2, gy); ctx.lineTo(cx + w / 2, gy); ctx.stroke(); ctx.shadowBlur = 0;
+    ctx.fillStyle = lit ? '#ffe36a' : '#143f54';
+    ctx.beginPath(); ctx.roundRect(cx - w / 2 - 12, gy - 53, w + 24, 22, 5); ctx.fill();
+    ctx.strokeStyle = lit ? '#fff' : '#7ce8f0'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = lit ? '#352400' : '#c9ffff'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(lit ? `${side} 通過！` : `${side} CHANCE`, cx, gy - 38);
+    ctx.lineWidth = 1;
+    }
+    const now = visualTime;
+    // 払い出し・取られたの光
+    flashes = flashes.filter((f) => now - f.t0 < (f.duration || 500));
+    for (const f of flashes) {
+      ctx.globalAlpha = 1 - (now - f.t0) / (f.duration || 500);
+      const m = f.id ? g.medals.find(m => m.id === f.id) : null;
+      ctx.beginPath(); ctx.arc(m ? m.x : f.x, m ? m.y : (f.y || C.D), f.r, 0, Math.PI * 2);
+      if (f.id) { ctx.strokeStyle = f.color; ctx.lineWidth = 4; ctx.stroke(); ctx.lineWidth = 1; }
+      else { ctx.fillStyle = f.color; ctx.fill(); }
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+    // 段の案内を台の上部に常時表示。
+    ctx.fillStyle = '#0b1226'; ctx.fillRect(0, 0, cv.width, OFFY);
+    ctx.fillStyle = '#c5ffff'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('① 左右から発射 → 上段 → 下段 → 手前で獲得', cv.width / 2, 22);
+    ctx.fillStyle = '#d7ffff'; ctx.font = 'bold 11px sans-serif';
+
+  }
+
+  const medalStyles={gold:['#fff6c0','#f2c230','#9a6d00','#ffe9a0'],blue:['#e5fbff','#42adff','#1552a0','#adf0ff'],purple:['#f6eaff','#b77cff','#532496','#f0caff']};
+  function medal(x,y,r,kind='gold') {
+    const style=medalStyles[kind]||medalStyles.gold;
+    let gr;
+    if(kind==='rainbow'){
+      gr=ctx.createLinearGradient(x-r,y-r,x+r,y+r);
+      ['#ff6eb4','#ffeb86','#83f4ba','#6ed6ff','#b08aff'].forEach((c,i)=>gr.addColorStop(i/4,c));
+    }else{
+      gr=ctx.createRadialGradient(x-r*0.35,y-r*0.35,1,x,y,r);gr.addColorStop(0,style[0]);gr.addColorStop(0.5,style[1]);gr.addColorStop(1,style[2]);
+    }
+    ctx.fillStyle=gr;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle=kind==='gold'?'#7a5600':'#e6f3ff';ctx.lineWidth=kind==='gold'?1:1.5;ctx.stroke();
+    ctx.strokeStyle=style[3];ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,y,r*0.69,0,Math.PI*2);ctx.stroke();
+    if(['blue','purple','rainbow'].includes(kind)){
+      ctx.fillStyle=kind==='rainbow'?'#233b5a':'#fff';ctx.font=`900 ${Math.round(r*1.05)}px sans-serif`;ctx.textAlign='center';
+      ctx.fillText(kind==='blue'?'＋':kind==='purple'?'★':'F',x,y+r*0.36);
+    }
+  }
+  function ball(x,y,r,kind='red') {
+    const type=PusherCore.BALL_TYPES[kind]||PusherCore.BALL_TYPES.red;
+    ctx.fillStyle='#0005';ctx.beginPath();ctx.arc(x+3,y+4,r,0,Math.PI*2);ctx.fill();
+    let gr;
+    if(kind==='rainbow'){
+      gr=ctx.createLinearGradient(x-r,y-r,x+r,y+r);['#ff9cce','#ffed9f','#96f1bf','#a0d3ff','#d3a8ff'].forEach((c,i)=>gr.addColorStop(i/4,c));
+    }else{gr=ctx.createRadialGradient(x-r*0.4,y-r*0.4,2,x,y,r);gr.addColorStop(0,'#fff');gr.addColorStop(0.25,type.color);gr.addColorStop(1,type.dark);}
+    ctx.fillStyle=gr;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=kind==='rainbow'?'#27344b':'#fff';ctx.font=`bold ${Math.round(r*0.6)}px sans-serif`;ctx.textAlign='center';ctx.fillText(type.symbol,x,y+r*0.21);
+  }
+
+  // ===== スロットとルーレットの表示（ゲームの時間に合わせて動かす） =====
+  let slotShown = ['7', '★', '●'];
+  function renderSlot() {
+    const reels = $('reels').children, S = C.SYMBOLS;
+    let stops = 3;
+    if (g.slot) {
+      const { t0, result } = g.slot; stops = 0;
+      const reach = result[0] === result[1];
+      for (let i = 0; i < 3; i++) {
+        const stopT = t0 + 0.8 + 0.5 * i + (i === 2 && reach ? 0.5 : 0); // リーチなら最後をじらす
+        const stopped = g.t >= stopT; if (stopped) stops++;
+        reels[i].textContent = stopped ? result[i] : S[(Math.floor(g.t * 16) + i * 2) % S.length];
+        reels[i].classList.toggle('spin', !stopped);
+      }
+      reels[2].classList.toggle('reach', reach && stops === 2);
+      slotShown = result;
+      if (stops > lastStops) SFX.stop();
+      lastStops = stops;
+    } else {
+      for (let i = 0; i < 3; i++) { reels[i].textContent = slotShown[i]; reels[i].classList.remove('spin', 'reach'); }
+      lastStops = 0;
+    }
+    document.querySelectorAll('.stock i').forEach((el, i) => el.classList.toggle('on', i < g.stock));
+  }
+  function renderWheel() {
+    const cells = $('wheel').children, n = cells.length;
+    if (g.roulette) {
+      const { t0, t1, index, values } = g.roulette;
+      [...cells].forEach((c,i)=>{const value=values?.[i]??C.ROULETTE[i];c.textContent=value===0?'蓄積':value;c.classList.toggle('big',value==='JP'||value>=100);});
+      const p = Math.min(1, (g.t - t0) / (t1 - t0 - 0.5)), e = 1 - Math.pow(1 - p, 3);
+      const pos = Math.floor(e * (3 * n + index)) % n;
+      [...cells].forEach((c, i) => c.classList.toggle('on', i === pos));
+      if (pos !== lastWheelPos) { SFX.tick(); lastWheelPos = pos; }
+      $('wheel').classList.toggle('done', p >= 1);
+    } else lastWheelPos = -1;
+  }
+  function setMsg(id, text, good) { const el = $(id); el.textContent = text; el.classList.toggle('good', !!good); }
+  function markHit(sym) { [...$('paytable').children].forEach((d) => d.classList.toggle('hit', d.dataset.sym === sym)); }
+
+  // ===== 出来事への反応 =====
+  function handleEvents() {
+    const now = visualTime;
+    for (const e of g.events) {
+      if (e.type === 'credit_empty') { /* オートは切らない。メダルが戻ったら自動で投入を再開する */ }
+      else if (e.type === 'credit_recovered') { recoveredUntil=now+2400; }
+      else if (e.type === 'game_over') { showGameOver(); }
+      else if (e.type === 'super_start') { setMsg('superMsg','上位スロット回転中！',true); }
+      else if (e.type === 'super_result') { setMsg('superMsg',e.value===0?(`JPに${e.charge}枚蓄積！`):`${e.jackpot?'JACKPOT！':'上位当たり！'} ${e.value}枚`,e.value>0); [...$('superCells').children].forEach((el,i)=>el.classList.toggle('on',i===e.index));if(e.value)SFX.win();else SFX.stop(); }
+
+      else if (e.type === 'special_collect') { if(e.kind==='blue')SFX.chance();else SFX.win(); }
+      else if (e.type === 'fever') { setMsg('slotMsg','フィーバー！次の３回は必ず当たり！',true); SFX.win(); }
+      else if (e.type === 'drop') { SFX.drop(); }
+      else if (e.type === 'land') { tone(500, {dur:0.04, vol:0.02}); }
+
+      else if (e.type === 'lower_land') { tone(330, {dur:0.04, type:'triangle', vol:0.02}); }
+      else if (e.type === 'pay') { SFX.pay(); }
+      else if (e.type === 'lost') { SFX.lost(); }
+      else if (e.type === 'chance' || e.type === 'chance_over') {
+        chanceFlash[e.gate] = now; gateNoticeUntil = now + 2400;
+        flashes.push({ x: e.x, y: e.y, id: e.id, r: C.BALL_R + 8, color: '#9cffff', t0: now, duration: 1400 });
+        const side = e.gate===0?'左':'右';
+        const message = e.type === 'chance_over' ? side+'ゲート通過！抽選待ちが満杯です（追加なし）' : e.queued ? side+'ゲート通過！抽選待ちに追加しました' : side+'ゲート通過！スロット抽選開始！';
+        $('gateMsg').textContent = message; $('gateStatus').classList.add('hit'); SFX.chance();
+      }
+      else if (e.type === 'slot_start') { setMsg('slotMsg', '抽選中…'); markHit(null); $('reels').classList.remove('win'); }
+      else if (e.type === 'slot_result') {
+        if (e.win) { setMsg('slotMsg', '当たり！ ' + e.label.split(' → ').pop(), true); markHit(e.result[0]); $('reels').classList.add('win'); SFX.win(); }
+        else { setMsg('slotMsg', e.result[0] === e.result[1] ? 'リーチ…ハズレ' : 'ハズレ'); SFX.miss(); }
+      }
+      else if (e.type === 'ball') { SFX.ball(); }
+      else if (e.type === 'roulette_start') {const type=PusherCore.BALL_TYPES[e.ballKind];$('ballTypeMsg').textContent=type.label+'ボール：'+type.description;$('wheel').style.setProperty('--ball-color',type.color);setMsg('wheelMsg',type.label+'ボールで抽選中…',true);$('wheel').classList.remove('done');}
+      else if (e.type === 'roulette_result') { [...$('wheel').children].forEach((el,i)=>el.classList.toggle('on',i===e.index)); $('wheel').classList.add('done'); setMsg('wheelMsg', e.value===0?`${'JPに'+e.charge+'枚蓄積！'}${e.ballKind==='purple'?' ＋上位抽選':''}`:(e.jackpot?'JACKPOT！ ':'')+e.value+'枚 払い出し'+(e.ballKind==='purple'?'＋上位抽選':''),e.value>0);if(e.value)SFX.win();else SFX.stop(); }
+    }
+    g.events.length = 0;
+  }
+
+  function render() {
+    const s = g.stats;
+    $('credit').textContent = g.credit; $('in').textContent = s.inserted; $('out').textContent = s.paid;
+    $('rate').textContent = s.inserted ? Math.round((s.paid / s.inserted) * 100) + '%' : '-';
+    $('nSlot').textContent = s.slot; $('nWin').textContent = s.slotWin; $('nBall').textContent = s.ballOut;
+    $('dropL').disabled = $('dropR').disabled = g.paused || g.status==='over' || g.credit <= 0;
+    $('specialCount').textContent=s.specialBlue+s.specialPurple+s.specialRainbow;
+    const jpText=g.jackpot.toLocaleString('ja-JP');$('jpPool').textContent=jpText;$('jpPool').style.fontSize=jpText.length>12?'20px':'28px'; $('starMeter').textContent=g.stars; $('chainCount').textContent=g.chain;
+    if(savedPool!==g.jackpot){try{localStorage.setItem('pusher-jp-v3-'+currentMode,String(g.jackpot));}catch{}savedPool=g.jackpot;}
+    const pendingCount=g.feed+g.prizeFlights.length;
+    $('feedState').textContent=pendingCount ? `景品メダルが流れ込み中：あと ${pendingCount}枚` : '景品は中央の払い出し口から上段へ。手前に落として獲得！';
+    $('bonusSummary').textContent=g.feverLeft ? `フィーバー！あと${g.feverLeft}回 当たり確定` : g.chain>=2 ? `${g.chain}連チャン！追加ボーナス獲得中` : `JP ${g.jackpot.toLocaleString('ja-JP')}枚 ／ ★をあと${3-g.stars}回揃えて上位抽選`;
+    if(g.superSlot){const pos=Math.floor(g.t*12)%C.SUPER_TABLE.length;[...$('superCells').children].forEach((el,i)=>el.classList.toggle('on',i===pos));}
+    if(g.awardSerial!==lastAwardId){
+      const rank=a=>a.source==='JACKPOT'?4:a.special==='rainbow'?3:a.special==='purple'?2.5:a.special==='blue'?2:1;
+      const fresh=g.awards.filter(a=>a.id>lastAwardId).sort((a,b)=>rank(b)-rank(a)||b.amount-a.amount);lastAwardId=g.awardSerial;
+      const a=fresh[0];
+      if(a && (visualTime>=toastUntil || rank(a)>toastRank || (rank(a)===toastRank && a.amount>=toastAmount))){
+        toastRank=rank(a);toastJP=a.source==='JACKPOT';toastAmount=a.amount;toastUntil=visualTime+(toastJP?5000:3000);
+        $('awardSource').textContent=a.source+'！';$('awardAmount').textContent=a.text||'＋'+a.amount.toLocaleString('ja-JP')+'枚';
+        for(const skin of ['jp','blue','purple','rainbow'])$('awardToast').classList.toggle(skin,skin==='jp'?toastJP:a.special===skin);
+      }
+    }
+    $('awardToast').hidden=visualTime>=toastUntil || g.status==='over';
+    $('tableHint').hidden=!$('awardToast').hidden;
+    const ballsOnField=g.medals.filter(m=>m.ball).length;
+    $('nBallOnField').textContent=ballsOnField; $('nBallReturning').textContent=g.ballReturns.length;
+    $('tableHint').textContent=`ボール ${ballsOnField}個 ｜ `+(pendingCount ? `景品あと${pendingCount}枚` : '左右の固定ゲートを狙おう');
+    const waiting=g.status==='draining'; $('creditNotice').hidden=!waiting && visualTime>=recoveredUntil;
+    if(waiting){$('creditNotice').textContent=g.state().pending?'ラストチャンス！抽選・落下・景品の流入を最後まで待っています。':'ラストチャンス！払い出し待ち：あと'+Math.ceil(g.drainRemaining())+'秒。メダルが戻れば続けられます。';}
+    else if(visualTime<recoveredUntil) $('creditNotice').textContent='メダルが戻りました！続けて遊べます。';
+    $('playState').textContent=g.status==='over'?'ゲームオーバー':g.paused?'一時停止中':waiting?'ラストチャンス・払い出し待ち':'プレイ中';
+    for (const id of ['sliderL', 'sliderR', 'auto', 'speed']) $(id).disabled = g.paused || g.status==='over';
+    $('leftHits').textContent=s.chanceLeft; $('rightHits').textContent=s.chanceRight;
+    $('nChance').textContent = s.chance; $('gateStock').textContent = g.stock;
+    if (visualTime >= gateNoticeUntil) { $('gateMsg').textContent = 'ボールがゲートを通るとスロット抽選！'; $('gateStatus').classList.remove('hit'); }
+    $('aimL').textContent = Math.round(g.aim[0]); $('aimR').textContent = Math.round(g.aim[1]);
+    renderSlot(); renderWheel();
+  }
+  let lastFrame = null, elapsed = 0;
+  function loop(now) {
+    audioBudget=0;
+    if (lastFrame !== null && !g.paused && g.status!=='over') {
+      const dt = Math.min((now - lastFrame) / 1000, 0.05);
+      elapsed += dt * speed; visualTime += dt * 1000;
+    }
+    lastFrame = now;
+    while (!g.paused && g.status!=='over' && elapsed >= C.DT) {
+      elapsed -= C.DT;
+      if (auto && g.status==='playing' && (autoTimer -= C.DT) <= 0) { g.drop(autoSide); autoSide ^= 1; autoTimer = 0.35; }
+      g.step();
+    }
+    handleEvents(); draw(); render();
+    requestAnimationFrame(loop);
+  }
+  function reset() {
+    if(g){try{localStorage.setItem('pusher-jp-v3-'+g.C.MODE,String(g.jackpot));}catch{}}
+    let pool;try{const raw=localStorage.getItem('pusher-jp-v3-'+currentMode);if(raw!==null && Number.isFinite(+raw)) pool=+raw;}catch{}
+    g = PusherCore.create((Math.random() * 1e9) | 0, {MODE:currentMode,JACKPOT_START:pool}); C = g.C; cv.width=C.W+BOARD_X*2; cv.height = C.D + OFFY;
+    document.querySelector('.cabinet').inert=false;$('endOverlay').hidden=true;document.body.classList.remove('ended');
+    savedPool=null;lastAwardId=0;toastUntil=0;recoveredUntil=0;
+    $('awardToast').hidden=true;
+    $('modeHint').textContent=PusherCore.MODES[currentMode].description+' 切り替えると新しいゲームになります。';
+    for(const [id,mode] of [['modeNormal','normal'],['modeFestival','festival']]){$(id).classList.toggle('active',currentMode===mode);$(id).setAttribute('aria-pressed',String(currentMode===mode));}
+    auto = false; speed = 1; autoSide = 0; autoTimer = 0; elapsed = 0; lastFrame = null;
+    $('speed').textContent = '速さ ×1';
+    lastStops = 0; lastWheelPos = -1; chanceFlash = [-Infinity, -Infinity]; visualTime = 0; gateNoticeUntil = 0;
+    $('auto').textContent = 'オート：OFF'; $('auto').classList.remove('on');
+    flashes = []; slotShown = ['7', '★', '●'];
+    buildPanels(); setMsg('superMsg','777 または ★当たり３回で上位抽選'); markHit(null); $('reels').classList.remove('win'); $('wheel').classList.remove('done');
+    setMsg('slotMsg', 'ボールのゲート通過でスロット抽選'); setMsg('wheelMsg', '色ボールを手前から落とそう');$('ballTypeMsg').textContent='落ちた色に合わせて抽選が変わります';$('wheel').style.removeProperty('--ball-color');
+    setPaused(false);
+  }
+
+  function setPaused(paused) {
+    if(g.status==='over')return;
+    g.setPaused(paused); elapsed = 0; lastFrame = null;
+    document.body.classList.toggle('paused', paused);
+    $('pauseOverlay').hidden = !paused;
+    $('pause').textContent = paused ? '▶ 再開する' : '⏸ 一時停止';
+    $('pause').setAttribute('aria-pressed', String(paused));
+    $('playState').textContent = paused ? '一時停止中' : 'プレイ中';
+    if (ac) {
+      if (paused) ac.suspend().catch(() => {});
+      else if (soundOn) ac.resume().catch(() => {});
+    }
+    render();
+  }
+
+  function setAuto(on){auto=on;$('auto').textContent='オート：'+(on?'ON':'OFF');$('auto').classList.toggle('on',on);}
+  function showGameOver(){
+    setAuto(false);elapsed=0;document.body.classList.add('ended');
+    $('endIn').textContent=g.stats.inserted+'枚';$('endOut').textContent=g.stats.paid+'枚';
+    $('endRate').textContent=g.stats.inserted?Math.round(g.stats.paid/g.stats.inserted*100)+'%':'－';$('endChain').textContent=g.stats.bestChain+'回';
+    $('restart').textContent=C.START_CREDIT+'枚で最初から遊ぶ';
+    $('restartFestival').hidden=currentMode==='festival';
+    $('endOverlay').hidden=false;document.querySelector('.cabinet').inert=true;$('restart').focus();
+    if(ac)ac.suspend().catch(()=>{});
+  }
+  function chooseMode(mode){currentMode=mode;reset();}
+  // ===== 操作 =====
+  $('modeNormal').onclick=()=>chooseMode('normal');$('modeFestival').onclick=()=>chooseMode('festival');
+  $('restart').onclick=()=>{reset();$('pause').focus();};$('restartFestival').onclick=()=>{chooseMode('festival');$('pause').focus();};
+  $('pause').onclick = () => setPaused(!g.paused);
+  $('resume').onclick = () => setPaused(false);
+  $('dropL').onclick = () => g.drop(0);
+  $('dropR').onclick = () => g.drop(1);
+  document.addEventListener('keydown', (e) => { if (e.key === 'a') g.drop(0); if (e.key === 'l') g.drop(1); });
+  cv.addEventListener('click', (e) => { // 台をクリック → 近い側の投入口をその位置に動かして投入
+    if (g.paused || g.status==='over') return;
+    const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) * (cv.width / r.width) - BOARD_X;
+    if(x<0 || x>C.W)return;
+    const side = x < C.W / 2 ? 0 : 1; g.drop(side, x);
+    $(side ? 'sliderR' : 'sliderL').value = g.aim[side];
+  });
+  $('auto').onclick = () => setAuto(!auto);
+  $('speed').onclick = (e) => { speed = speed === 1 ? 4 : speed === 4 ? 16 : 1; e.target.textContent = '速さ ×' + speed; };
+  $('sound').onclick = (e) => { soundOn = !soundOn; e.target.textContent = soundOn ? '🔊' : '🔇'; };
+  $('reset').onclick = reset;
+  const L = $('lights'); for (let i = 0; i < 18; i++) L.appendChild(document.createElement('span'));
+  let lt = 0; setInterval(() => { if (g.paused || g.status==='over') return; lt++; [...L.children].forEach((s, i) => s.classList.toggle('on', (i + lt) % 3 === 0)); }, 180);
+
+  window.addEventListener('pagehide',()=>{if(g){try{localStorage.setItem('pusher-jp-v3-'+g.C.MODE,String(g.jackpot));}catch{}}});
+  reset(); requestAnimationFrame(loop);
+  window.game = () => g; // AI に遊ばせるとき・確認用
+})();
+</script>
+</body>
+</html>
